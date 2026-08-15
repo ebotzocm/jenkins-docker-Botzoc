@@ -17,3 +17,14 @@ Proyecto académico para practicar integración continua y despliegue utilizando
 - GitHub
 - Nginx
 - HTML
+
+## Verificación local con Docker
+
+Antes de configurar Jenkins, se realizó una prueba local de la aplicación utilizando Docker.
+
+### 1. Construcción de la imagen
+
+Se construyó la imagen Docker con el nombre `jenkins-docker-botzoc` y la versión `v1.0`.
+
+```bash
+docker build -t jenkins-docker-botzoc:v1.0 .
