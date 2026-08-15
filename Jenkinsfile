@@ -11,25 +11,26 @@ pipeline {
 
         stage('Clonacion') {
             steps {
-                echo 'Repositorio obtenido correctamente desde GitHub'
-                sh 'git status'
+                echo 'Obteniendo repositorio desde GitHub...'
+                checkout scm
+                echo 'Repositorio clonado correctamente.'
             }
         }
 
         stage('Verificacion') {
             steps {
-                echo 'Verificando archivos necesarios...'
+                echo 'Verificando archivos obligatorios...'
 
                 sh '''
-                    if [ ! -f index.html ]; then
+                    test -f index.html || {
                         echo "ERROR: No se encontro index.html"
                         exit 1
-                    fi
+                    }
 
-                    if [ ! -f Dockerfile ]; then
+                    test -f Dockerfile || {
                         echo "ERROR: No se encontro Dockerfile"
                         exit 1
-                    fi
+                    }
 
                     echo "index.html encontrado"
                     echo "Dockerfile encontrado"
@@ -39,61 +40,59 @@ pipeline {
 
         stage('Construccion') {
             steps {
-                echo "Construyendo imagen Docker version ${BUILD_NUMBER}"
+                echo "Construyendo imagen Docker ${IMAGE_NAME}:${BUILD_NUMBER}"
 
                 sh '''
-                    docker build \
-                    -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+                    docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
                 '''
             }
         }
 
         stage('Despliegue') {
             steps {
-                echo 'Eliminando contenedor anterior si existe...'
+                echo 'Reemplazando contenedor anterior si existe...'
 
                 sh '''
                     docker rm -f ${CONTAINER_NAME} 2>/dev/null || true
 
-                    echo "Creando nuevo contenedor..."
-
                     docker run -d \
-                    --name ${CONTAINER_NAME} \
-                    -p ${APP_PORT}:80 \
-                    ${IMAGE_NAME}:${BUILD_NUMBER}
+                        --name ${CONTAINER_NAME} \
+                        -p ${APP_PORT}:80 \
+                        ${IMAGE_NAME}:${BUILD_NUMBER}
                 '''
             }
         }
 
         stage('Confirmacion') {
             steps {
-                echo 'Verificando contenedor desplegado...'
+                echo 'Comprobando despliegue...'
 
                 sh '''
+                    sleep 2
+
                     docker ps --filter "name=${CONTAINER_NAME}"
+
+                    curl -f http://host.docker.internal:${APP_PORT} > /dev/null
                 '''
 
-                echo "Aplicacion desplegada correctamente"
-                echo "Imagen: ${IMAGE_NAME}:${BUILD_NUMBER}"
-                echo "Puerto publicado: ${APP_PORT}"
+                echo "Aplicacion disponible en el puerto ${APP_PORT}"
             }
         }
     }
 
     post {
-
         success {
-            echo '============================================'
+            echo '=========================================='
             echo 'PIPELINE EJECUTADO EXITOSAMENTE'
             echo 'Aplicacion desplegada con Jenkins y Docker'
-            echo '============================================'
+            echo '=========================================='
         }
 
         failure {
-            echo '============================================'
+            echo '=========================================='
             echo 'ERROR: EL PIPELINE HA FALLADO'
             echo 'Revise la salida de consola de Jenkins'
-            echo '============================================'
+            echo '=========================================='
         }
     }
 }
